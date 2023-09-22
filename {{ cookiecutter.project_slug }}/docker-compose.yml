@@ -1,0 +1,87 @@
+version: '3.9'
+
+x-django: &django
+  build:
+    context: .
+    target: {{ 'app-with-static' if cookiecutter.whitenoise_static else 'app' }}
+  env_file: .env
+  environment:
+    ENVIRONMENT: ${ENVIRONMENT:-staging}
+    DATABASE_URL: postgres://{{ cookiecutter.project_slug }}:${DB_PASSWORD:-django}@db/{{ cookiecutter.project_slug }}
+    CACHE_URL: rediscache://redis
+    MEDIA_URL: /media/
+    STATIC_URL: /static/
+  volumes:
+    - django-media:/app/media
+{% if not cookiecutter.whitenoise_static %}
+    - django-static:/app/staticfiles
+{% endif %}
+  depends_on:
+    - db
+    - redis
+
+services:
+  django:
+    << : *django
+    environment:
+      VIRTUAL_PORT: 8000
+      VIRTUAL_PATH: /
+
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: {{ cookiecutter.project_slug }}
+      POSTGRES_USER: {{ cookiecutter.project_slug }}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-django}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./initdb.d:/docker-entrypoint-initdb.d
+
+  redis:
+    image: redis:alpine
+
+  media:
+    image: flashspys/nginx-static
+    restart: always
+    environment:
+      VIRTUAL_PORT: 80
+      VIRTUAL_PATH: /media
+      VIRTUAL_DEST: /
+    env_file: .env
+    volumes:
+      - django-media:/static/media
+
+{% if not cookiecutter.whitenoise_static %}
+  static:
+    image: flashspys/nginx-static
+    restart: always
+    environment:
+      VIRTUAL_PORT: 80
+      VIRTUAL_PATH: /static
+      VIRTUAL_DEST: /
+    env_file: .env
+    volumes:
+      - django-static:/static/static
+{% endif %}
+
+  web:
+    image: nginxproxy/nginx-proxy:alpine
+    restart: always
+    ports:
+      - ${HTTP_PORT:-80}:80
+      - ${HTTPS_PORT:-443}:443
+    environment:
+      DEFAULT_HOST: default
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - web-certs:/etc/nginx/certs
+      - web-vhost:/etc/nginx/vhost.d
+      - web-html:/usr/share/nginx/html
+
+volumes:
+  db-data:
+  django-media:
+{% if not cookiecutter.whitenoise_static %}
+  django-static:
+{% endif %}
