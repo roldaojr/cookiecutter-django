@@ -1,8 +1,10 @@
 {
     "project_name": "project name",
-    "project_slug": "{{ cookiecutter.project_name.lower()|replace(' ', '_')|replace('-', '_')|replace('.', '_')|trim() }}",
+    "project_slug": "{{ cookiecutter.project_name | slugify | replace('-', '_') }}",
+    "version": "0.1.0",
     "domain_name": "{{ cookiecutter.project_name | slugify }}.localtest.me",
     "whitenoise_static": true,
+    "enable_s3_storage": true,
     "_jinja2_env_vars": {
         "lstrip_blocks": true,
         "trim_blocks": true

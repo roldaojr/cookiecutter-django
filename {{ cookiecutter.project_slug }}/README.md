@@ -1,25 +1,25 @@
 # {{ cookiecutter.project_name }}
 
-## Getting started
+## Começando
 
-Copy .env-EXAMPLE to .env
+Copiar .env-EXAMPLE to .env
 
-Change .env if needed
+Alterar .env conforme necessário
 
-Install the requirements:
+Instalar dependências:
 
-    pipenv install
+    poetry install
 
-Create database
+Criar o banco de dados
 
-    pipenv run manage migrate
+    poetry run manage migrate
 
-Create initial user
+Criar usuário incial
 
-    pipenv run manage createsuperuser
+    poetry run manage createsuperuser
 
-Run the development server:
+Executar servidor de desenvolvimento:
 
-    pipenv run server
+    poetry run manage runserver
 
-Go to http://localhost:8000/ in your browser
+Abrir http://localhost:8000/ no navegador

@@ -8,12 +8,19 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
-import sys
 import environ
 import os
+import sentry_sdk
+import sys
 from django.utils.translation import gettext_lazy as _
 from email.utils import getaddresses
+from urllib.parse import urlparse
 from io import StringIO
+from sentry_sdk.integrations.logging import ignore_logger
+from sentry_sdk.integrations.django import DjangoIntegration
+from sentry_sdk.integrations.redis import RedisIntegration
+from sentry_sdk.integrations.logging import LoggingIntegration
+
 
 IS_TESTING = "test" in sys.argv
 project_root = environ.Path(__file__) - 2
@@ -56,7 +63,6 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "whitenoise.runserver_nostatic",
     "django.contrib.staticfiles",
-    "rest_framework",
     "crispy_forms",
     "crispy_bootstrap5",
     # aditional apps
@@ -134,25 +140,29 @@ if not DEBUG:
 # {% endif %}
 
 # Media files
-MEDIA_ROOT = env.url("MEDIA_ROOT", default=project_root("media"))
-MEDIA_URL = env("MEDIA_URL", default="media")
+MEDIA_ROOT = env.str("MEDIA_ROOT", default=project_root("media"))
+MEDIA_URL = env("MEDIA_URL", default="/media/")
 DATA_UPLOAD_MAX_MEMORY_SIZE = 100 * 1024**2  # max upload data 20 MB
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
 FILE_UPLOAD_PERMISSIONS = 0o644
-S3_MEDIA_BUCKET_URL = env.url("S3_MEDIA_BUCKET_URL", default=None)
-if S3_MEDIA_BUCKET_URL is not None:
+# {% if cookiecutter.enable_s3_storage %}
+# Media ROOT on a S3 bucket
+if MEDIA_ROOT.startswith("s3://"):
+    # media root is a S3 bucket
+    MEDIA_BUCKET_URL = urlparse(MEDIA_ROOT)
     DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
     AWS_DEFAULT_ACL = "public-read"
     AWS_QUERYSTRING_AUTH = False
     AWS_PRIVATE_QUERYSTRING_AUTH = True
-    AWS_ACCESS_KEY_ID = S3_MEDIA_BUCKET_URL.username
-    AWS_SECRET_ACCESS_KEY = S3_MEDIA_BUCKET_URL.password
-    AWS_STORAGE_BUCKET_NAME = S3_MEDIA_BUCKET_URL.path.strip("/")
+    AWS_ACCESS_KEY_ID = MEDIA_BUCKET_URL.username
+    AWS_SECRET_ACCESS_KEY = MEDIA_BUCKET_URL.password
+    AWS_STORAGE_BUCKET_NAME = MEDIA_BUCKET_URL.path.strip("/")
     AWS_PRIVATE_STORAGE_BUCKET_NAME = AWS_STORAGE_BUCKET_NAME
     AWS_QUERYSTRING_EXPIRE = 3600
     AWS_S3_ENDPOINT_URL = (
-        f"{S3_MEDIA_BUCKET_URL.scheme or 'https'}://{S3_MEDIA_BUCKET_URL.netloc}"
+        f"{MEDIA_BUCKET_URL.scheme or 'https'}://{MEDIA_BUCKET_URL.netloc}"
     )
+# {% endif %}
 
 # Email config
 ADMINS = getaddresses([env("ADMINS", default="")])
@@ -164,7 +174,6 @@ vars().update(env.email_url("EMAIL_URL", default="consolemail://"))
 # Sets default for primary key IDs
 # See https://docs.djangoproject.com/en/4.1/ref/models/fields/#bigautofield
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
 # logging - Enable log to console
 LOGGING = {
     "version": 1,
@@ -184,17 +193,20 @@ LOGGING = {
 
 # Sentry error reporter
 SENTRY_DSN = env.str("SENTRY_DSN", default=None)
-if SENTRY_DSN:  # sentry is configured
-    import sentry_sdk
-    from sentry_sdk.integrations.django import DjangoIntegration, RedisIntegration
-
+if SENTRY_DSN:
     sentry_sdk.init(
         dsn=SENTRY_DSN,
-        integrations=[DjangoIntegration(), RedisIntegration()],
+        debug=DEBUG,
         environment=ENVIRONMENT,
-        traces_sample_rate=1.0,
-        send_default_pii=True,
+        release=get_version(),
+        integrations=[
+            DjangoIntegration(),
+            RedisIntegration(),
+            LoggingIntegration(),
+        ],
     )
+ignore_logger("django.security.DisallowedHost")
+
 # develop environment settings
 if DEBUG:
     # allow localhost access
