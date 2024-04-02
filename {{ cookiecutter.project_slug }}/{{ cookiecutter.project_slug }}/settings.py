@@ -2,10 +2,10 @@
 Django settings for '{{ cookiecutter.project_name }}' project.
 
 For more information on this file, see
-https://docs.djangoproject.com/en/4.1/topics/settings/
+https://docs.djangoproject.com/en/5.0/topics/settings/
 
 For the full list of settings and their values, see
-https://docs.djangoproject.com/en/4.1/ref/settings/
+https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
 import environ
@@ -20,6 +20,7 @@ from sentry_sdk.integrations.logging import ignore_logger
 from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.integrations.redis import RedisIntegration
 from sentry_sdk.integrations.logging import LoggingIntegration
+from {{ cookiecutter.project_slug }} import __version__
 
 
 IS_TESTING = "test" in sys.argv
@@ -61,18 +62,24 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
+    {% if cookiecutter.whitenoise_static %}
     "whitenoise.runserver_nostatic",
+    {% endif %}
     "django.contrib.staticfiles",
     "crispy_forms",
     "crispy_bootstrap5",
     # aditional apps
+    {% if cookiecutter.enable_s3_storage %}
     "storages",
+    {% endif %}
     # project apps
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    {% if cookiecutter.whitenoise_static %}
     "whitenoise.middleware.WhiteNoiseMiddleware",
+    {% endif %}
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -132,12 +139,11 @@ STATICFILES_FINDERS = [
 STATIC_ROOT = env("STATIC_ROOT", default=project_root("staticfiles"))
 STATIC_URL = env("STATIC_URL", default="/static/")
 
-# {% if cookiecutter.whitenoise_static %}
-# Whitenoiise
+{% if cookiecutter.whitenoise_static %}
 WHITENOISE_KEEP_ONLY_HASHED_FILES = True
 if not DEBUG:
     STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
-# {% endif %}
+{% endif %}
 
 # Media files
 MEDIA_ROOT = env.str("MEDIA_ROOT", default=project_root("media"))
@@ -145,7 +151,7 @@ MEDIA_URL = env("MEDIA_URL", default="/media/")
 DATA_UPLOAD_MAX_MEMORY_SIZE = 100 * 1024**2  # max upload data 20 MB
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
 FILE_UPLOAD_PERMISSIONS = 0o644
-# {% if cookiecutter.enable_s3_storage %}
+{% if cookiecutter.enable_s3_storage %}
 # Media ROOT on a S3 bucket
 if MEDIA_ROOT.startswith("s3://"):
     # media root is a S3 bucket
@@ -162,7 +168,7 @@ if MEDIA_ROOT.startswith("s3://"):
     AWS_S3_ENDPOINT_URL = (
         f"{MEDIA_BUCKET_URL.scheme or 'https'}://{MEDIA_BUCKET_URL.netloc}"
     )
-# {% endif %}
+{% endif %}
 
 # Email config
 ADMINS = getaddresses([env("ADMINS", default="")])
@@ -174,6 +180,7 @@ vars().update(env.email_url("EMAIL_URL", default="consolemail://"))
 # Sets default for primary key IDs
 # See https://docs.djangoproject.com/en/4.1/ref/models/fields/#bigautofield
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
 # logging - Enable log to console
 LOGGING = {
     "version": 1,
@@ -198,7 +205,7 @@ if SENTRY_DSN:
         dsn=SENTRY_DSN,
         debug=DEBUG,
         environment=ENVIRONMENT,
-        release=get_version(),
+        release=__version__,
         integrations=[
             DjangoIntegration(),
             RedisIntegration(),

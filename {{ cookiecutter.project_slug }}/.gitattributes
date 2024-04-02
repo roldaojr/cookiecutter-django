@@ -12,3 +12,5 @@
 *.ts text eol=lf
 *.txt text eol=lf
 *.yml text eol=lf
+
+{{ cookiecutter.project_slug }}/_static_version.py export-subst
