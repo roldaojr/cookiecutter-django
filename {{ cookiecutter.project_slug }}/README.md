@@ -12,14 +12,14 @@ Instalar dependências:
 
 Criar o banco de dados
 
-    poetry run manage migrate
+    poetry run python manage.py migrate
 
-Criar usuário incial
+Criar usuário inicial
 
-    poetry run manage createsuperuser
+    poetry run python manage.py createsuperuser
 
 Executar servidor de desenvolvimento:
 
-    poetry run manage runserver
+    poetry run python manage.py runserver
 
 Abrir http://localhost:8000/ no navegador
