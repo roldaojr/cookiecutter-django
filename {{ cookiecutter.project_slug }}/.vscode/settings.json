@@ -2,5 +2,6 @@
     "[python]": {
         "editor.defaultFormatter": "ms-python.black-formatter"
     },
-    "python.formatting.provider": "none"
+    "pre-commit-helper.runOnSave": "all hooks",
+    "pre-commit-helper.runOnSaveRegex": "^(.*)\\.(py)$"
 }
